@@ -49,6 +49,7 @@ namespace Kinected.Sensors
         }
 
         public event EventHandler<BodyFrameData> BodyFrameArrived;
+        private BodyFrameData bfd = new BodyFrameData();
 
         void multiSrcReader_MultiSourceFrameArrived(object sender, MultiSourceFrameArrivedEventArgs e)
         {
@@ -73,17 +74,17 @@ namespace Kinected.Sensors
                                 {
                                     if (b.IsTracked)
                                     {
-                                        BodyFrameData bfd = new BodyFrameData();
-                                        bfd.Body = b;
-                                        this.BodyFrameArrived(this, bfd);
+                                        this.bfd.Body = b;
+                                        this.BodyFrameArrived(this, this.bfd);
                                     }
                                 }
                             }
                         }
                     }
                 }
-                catch (Exception exception)
+                catch (Exception)
                 {
+                    // TODO: Handle exceptions
                 }
             }
         }
@@ -92,7 +93,15 @@ namespace Kinected.Sensors
         {
             get
             {
-                return this.sensor != null && this.sensor.IsOpen && this.sensor.IsAvailable;
+                try
+                {
+                    return this.sensor != null && this.sensor.IsOpen && this.sensor.IsAvailable;
+                }
+                catch (Exception)
+                {
+                    // TODO: Properly handle exceptions
+                    return false;
+                }
             }
         }
 
