@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Drawing.Imaging;
+using System.Drawing;
+using System.Runtime.InteropServices;
 using Microsoft.Kinect;
 using Microsoft.Kinect.Face;
 using Microsoft.Kinect.Input;
@@ -15,8 +18,15 @@ namespace Kinected.Sensors
         private MultiSourceFrameReader multiSrcReader = null;
 
         private int bodyCount = 0;
-
         private Body[] bodies = null;
+
+        private byte[] colorImageData;
+
+        public event EventHandler<BodyFrameData> BodyFrameArrived;
+        public event EventHandler<ImageFrameData> ImageFrameArrived;
+
+        private ImageFrameData ifd = new ImageFrameData();
+        private BodyFrameData bfd = new BodyFrameData();
 
         public Kinect()
         {
@@ -30,12 +40,15 @@ namespace Kinected.Sensors
 
         public void Start()
         {
-            if(this.isConnected)
+            if (this.sensor != null)
             {
+                FrameDescription colorFrameDescription = this.sensor.ColorFrameSource.FrameDescription;
+                this.colorImageData = new byte[colorFrameDescription.Width * colorFrameDescription.Height * 4];
+
                 this.bodyCount = this.sensor.BodyFrameSource.BodyCount;
                 this.bodies = new Body[this.bodyCount];
 
-                this.multiSrcReader = this.sensor.OpenMultiSourceFrameReader(FrameSourceTypes.Body);
+                this.multiSrcReader = this.sensor.OpenMultiSourceFrameReader(FrameSourceTypes.Color | FrameSourceTypes.Depth | FrameSourceTypes.Body);
                 this.multiSrcReader.MultiSourceFrameArrived += multiSrcReader_MultiSourceFrameArrived;
             }
         }
@@ -48,44 +61,75 @@ namespace Kinected.Sensors
             }
         }
 
-        public event EventHandler<BodyFrameData> BodyFrameArrived;
-        private BodyFrameData bfd = new BodyFrameData();
-
-        void multiSrcReader_MultiSourceFrameArrived(object sender, MultiSourceFrameArrivedEventArgs e)
+        private void HandleColorFrame(ColorFrameReference colorFrameReference)
         {
-            if(this.BodyFrameArrived != null)
+            ColorFrame colorFrame = colorFrameReference.AcquireFrame();
+
+            if(colorFrame != null)
             {
-                MultiSourceFrameReference msFrameRef = e.FrameReference;
-
-                try
+                using(colorFrame)
                 {
-                    MultiSourceFrame frame = msFrameRef.AcquireFrame();
-
-                    if (frame != null)
+                    if(colorFrame.RawColorImageFormat == ColorImageFormat.Bgra)
                     {
-                        BodyFrameReference bodyFrameReference = frame.BodyFrameReference;
-                        BodyFrame bodyFrame = bodyFrameReference.AcquireFrame();
-                        if (bodyFrame != null)
+                        colorFrame.CopyRawFrameDataToArray(this.colorImageData);
+                    }
+                    else
+                    {
+                        colorFrame.CopyConvertedFrameDataToArray(this.colorImageData, ColorImageFormat.Bgra);
+                    }
+
+                    this.ifd.createBitmap(colorFrame.FrameDescription.Width, colorFrame.FrameDescription.Height, PixelFormat.Format32bppArgb, this.colorImageData);
+                    this.ImageFrameArrived(this, this.ifd);
+                }
+            }
+        }
+
+        private void HandleBodies(BodyFrameReference bodyFrameReference)
+        {
+            BodyFrame bodyFrame = bodyFrameReference.AcquireFrame();
+            if (bodyFrame != null)
+            {
+                using (bodyFrame)
+                {
+                    bodyFrame.GetAndRefreshBodyData(this.bodies);
+                    foreach (Body b in this.bodies)
+                    {
+                        if (b.IsTracked)
                         {
-                            using (bodyFrame)
-                            {
-                                bodyFrame.GetAndRefreshBodyData(this.bodies);
-                                foreach (Body b in this.bodies)
-                                {
-                                    if (b.IsTracked)
-                                    {
-                                        this.bfd.Body = b;
-                                        this.BodyFrameArrived(this, this.bfd);
-                                    }
-                                }
-                            }
+                            this.bfd.Body = b;
+                            this.BodyFrameArrived(this, this.bfd);
                         }
                     }
                 }
-                catch (Exception)
+            }
+        }
+
+        void multiSrcReader_MultiSourceFrameArrived(object sender, MultiSourceFrameArrivedEventArgs e)
+        {
+            MultiSourceFrameReference msFrameRef = e.FrameReference;
+
+            try
+            {
+                MultiSourceFrame frame = msFrameRef.AcquireFrame();
+
+                if (frame != null)
                 {
-                    // TODO: Handle exceptions
+                    ColorFrameReference colorFrameReference = frame.ColorFrameReference;
+                    BodyFrameReference bodyFrameReference = frame.BodyFrameReference;
+
+                    if (this.ImageFrameArrived != null)
+                    {
+                        this.HandleColorFrame(colorFrameReference);
+                    }
+                    if (this.BodyFrameArrived != null)
+                    {
+                        this.HandleBodies(bodyFrameReference);
+                    }
                 }
+            }
+            catch (Exception)
+            {
+                // TODO: Handle exceptions
             }
         }
 
@@ -117,5 +161,34 @@ namespace Kinected.Sensors
     public class BodyFrameData : EventArgs
     {
         public Body Body { get; set; }
+    }
+    public class ImageFrameData : EventArgs
+    {
+        private Bitmap image = null;
+
+        public void createBitmap(int width, int height, PixelFormat pixelFormat, byte[] data)
+        {
+            this.image = new Bitmap(width, height, pixelFormat);
+            BitmapData bmpData = this.image.LockBits(new Rectangle(0, 0, width, height),
+                ImageLockMode.WriteOnly, this.image.PixelFormat);
+            IntPtr ptr = bmpData.Scan0;
+
+            int bytes = bmpData.Stride * this.image.Height;
+
+            Marshal.Copy(data, 0, ptr, bytes);
+            this.image.UnlockBits(bmpData);
+        }
+
+        public Bitmap Image
+        {
+            get
+            {
+                return image;
+            }
+            set
+            {
+                image = value;
+            }
+        }
     }
 }

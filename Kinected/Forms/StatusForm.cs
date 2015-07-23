@@ -16,5 +16,13 @@ namespace Kinected.Forms
         {
             InitializeComponent();
         }
+
+        public Bitmap ColorImage
+        {
+            set
+            {
+                this.colorPB.Image = value;
+            }
+        }
     }
 }

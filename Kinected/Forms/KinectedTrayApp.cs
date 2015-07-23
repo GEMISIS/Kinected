@@ -12,13 +12,14 @@ using Microsoft.Kinect.Input;
 
 using Kinected.Sensors;
 
-namespace Kinected
+namespace Kinected.Forms
 {
     class KinectedTrayApp : Form
     {
         private Kinect kinect;
         private NotifyIcon trayIcon;
         private ContextMenu trayMenu;
+        private StatusForm statusForm;
 
         [STAThread]
         static void Main(string[] args)
@@ -29,6 +30,7 @@ namespace Kinected
         public KinectedTrayApp()
         {
             this.trayMenu = new ContextMenu();
+            this.trayMenu.MenuItems.Add("Show Status", OnStatus);
             this.trayMenu.MenuItems.Add("Exit", OnExit);
 
             this.trayIcon = new NotifyIcon();
@@ -45,7 +47,22 @@ namespace Kinected
             base.OnLoad(e);
 
             this.kinect = new Kinect();
+            this.kinect.ImageFrameArrived += kinect_ImageFrameArrived;
             this.kinect.Start();
+        }
+
+        void kinect_ImageFrameArrived(object sender, ImageFrameData e)
+        {
+            if(statusForm.Visible)
+            {
+                statusForm.ColorImage = e.Image;
+            }
+        }
+
+        private void OnStatus(object sender, EventArgs e)
+        {
+            this.statusForm = new StatusForm();
+            statusForm.Show();
         }
 
         private void OnExit(object sender, EventArgs e)
