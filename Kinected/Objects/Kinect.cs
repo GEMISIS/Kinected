@@ -45,8 +45,7 @@ namespace Kinected.Sensors
                 FrameDescription colorFrameDescription = this.sensor.ColorFrameSource.FrameDescription;
                 this.colorImageData = new byte[colorFrameDescription.Width * colorFrameDescription.Height * 4];
 
-                this.bodyCount = this.sensor.BodyFrameSource.BodyCount;
-                this.bodies = new Body[this.bodyCount];
+                this.bodies = new Body[this.sensor.BodyFrameSource.BodyCount];
 
                 this.multiSrcReader = this.sensor.OpenMultiSourceFrameReader(FrameSourceTypes.Color | FrameSourceTypes.Depth | FrameSourceTypes.Body);
                 this.multiSrcReader.MultiSourceFrameArrived += multiSrcReader_MultiSourceFrameArrived;
@@ -92,10 +91,12 @@ namespace Kinected.Sensors
                 using (bodyFrame)
                 {
                     bodyFrame.GetAndRefreshBodyData(this.bodies);
+                    this.bodyCount = 0;
                     foreach (Body b in this.bodies)
                     {
                         if (b.IsTracked)
                         {
+                            this.bodyCount += 1;
                             this.bfd.Body = b;
                             this.BodyFrameArrived(this, this.bfd);
                         }
@@ -146,6 +147,14 @@ namespace Kinected.Sensors
                     // TODO: Properly handle exceptions
                     return false;
                 }
+            }
+        }
+
+        public int BodyCount
+        {
+            get
+            {
+                return this.bodyCount;
             }
         }
 

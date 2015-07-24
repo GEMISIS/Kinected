@@ -38,6 +38,8 @@ namespace Kinected.Forms
             this.trayIcon.Icon = new Icon(SystemIcons.Application, 40, 40);
             this.trayIcon.ContextMenu = this.trayMenu;
             this.trayIcon.Visible = true;
+
+            Objects.TcpServer test = new Objects.TcpServer();
         }
 
         protected override void OnLoad(EventArgs e)
@@ -48,15 +50,21 @@ namespace Kinected.Forms
 
             this.kinect = new Kinect();
             this.kinect.ImageFrameArrived += kinect_ImageFrameArrived;
+            this.kinect.BodyFrameArrived += kinect_BodyFrameArrived;
             this.kinect.Start();
         }
 
         void kinect_ImageFrameArrived(object sender, ImageFrameData e)
         {
-            if(statusForm.Visible)
+            if (statusForm != null && statusForm.Visible)
             {
+                statusForm.BodyCount = this.kinect.BodyCount;
                 statusForm.ColorImage = e.Image;
             }
+        }
+
+        void kinect_BodyFrameArrived(object sender, BodyFrameData e)
+        {
         }
 
         private void OnStatus(object sender, EventArgs e)

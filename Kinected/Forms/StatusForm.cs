@@ -24,5 +24,13 @@ namespace Kinected.Forms
                 this.colorPB.Image = value;
             }
         }
+
+        public int BodyCount
+        {
+            set
+            {
+                this.bodyCountValLabel.Text = value.ToString();
+            }
+        }
     }
 }
