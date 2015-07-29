@@ -78,7 +78,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(350, 180);
+            this.ClientSize = new System.Drawing.Size(350, 172);
             this.Controls.Add(this.bodyCountValLabel);
             this.Controls.Add(this.bodyCountLabel);
             this.Controls.Add(this.depthPB);

@@ -5,11 +5,13 @@ using System.Text;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Threading.Tasks;
+using System.Net;
 
 using Microsoft.Kinect;
 using Microsoft.Kinect.Face;
 using Microsoft.Kinect.Input;
 
+using Kinected.Objects;
 using Kinected.Sensors;
 
 namespace Kinected.Forms
@@ -20,6 +22,7 @@ namespace Kinected.Forms
         private NotifyIcon trayIcon;
         private ContextMenu trayMenu;
         private StatusForm statusForm;
+        private TcpServer server;
 
         [STAThread]
         static void Main(string[] args)
@@ -29,7 +32,16 @@ namespace Kinected.Forms
 
         public KinectedTrayApp()
         {
+        }
+
+        protected override void OnLoad(EventArgs e)
+        {
+            this.Visible = false;
+            this.ShowInTaskbar = false;
+            base.OnLoad(e);
+
             this.trayMenu = new ContextMenu();
+            this.trayMenu.MenuItems.Add("Connect to Kinect", tryConnect);
             this.trayMenu.MenuItems.Add("Show Status", OnStatus);
             this.trayMenu.MenuItems.Add("Exit", OnExit);
 
@@ -39,19 +51,7 @@ namespace Kinected.Forms
             this.trayIcon.ContextMenu = this.trayMenu;
             this.trayIcon.Visible = true;
 
-            Objects.TcpServer test = new Objects.TcpServer();
-        }
-
-        protected override void OnLoad(EventArgs e)
-        {
-            this.Visible = false;
-            this.ShowInTaskbar = false;
-            base.OnLoad(e);
-
-            this.kinect = new Kinect();
-            this.kinect.ImageFrameArrived += kinect_ImageFrameArrived;
-            this.kinect.BodyFrameArrived += kinect_BodyFrameArrived;
-            this.kinect.Start();
+            this.tryConnect(null, null);
         }
 
         void kinect_ImageFrameArrived(object sender, ImageFrameData e)
@@ -67,6 +67,32 @@ namespace Kinected.Forms
         {
         }
 
+        private void tryConnect(object sender, EventArgs e)
+        {
+            this.kinect = new Kinect();
+            if (this.kinect.isConnected)
+            {
+                this.kinect.ImageFrameArrived += kinect_ImageFrameArrived;
+                this.kinect.BodyFrameArrived += kinect_BodyFrameArrived;
+                this.kinect.Start();
+                this.server = new TcpServer(this.kinect);
+                this.trayMenu.MenuItems[0].Enabled = false;
+
+                IPHostEntry host;
+                string localIP = "?";
+                host = Dns.GetHostEntry(Dns.GetHostName());
+                foreach(IPAddress ip in host.AddressList)
+                {
+                    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                    {
+                        localIP = ip.ToString();
+                    }
+                }
+
+                this.trayIcon.ShowBalloonTip(1000 * 5, "Kinected Active", "Your IP Address is: " + localIP, ToolTipIcon.Info);
+            }
+        }
+
         private void OnStatus(object sender, EventArgs e)
         {
             this.statusForm = new StatusForm();
@@ -75,6 +101,7 @@ namespace Kinected.Forms
 
         private void OnExit(object sender, EventArgs e)
         {
+            this.server.StopServer();
             Application.Exit();
         }
     }

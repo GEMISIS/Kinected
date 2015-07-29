@@ -35,6 +35,7 @@ namespace Kinected.Sensors
             if (this.sensor != null)
             {
                 this.sensor.Open();
+                System.Threading.Thread.Sleep(1000);
             }
         }
 
@@ -58,6 +59,49 @@ namespace Kinected.Sensors
             {
                 this.multiSrcReader.MultiSourceFrameArrived -= multiSrcReader_MultiSourceFrameArrived;
             }
+        }
+
+        public Body GetBody(int index)
+        {
+            return this.bodies[index];
+        }
+
+        public Body GetBody(ulong bodyTrackingId)
+        {
+            return this.bodies[this.GetBodyIndex(bodyTrackingId)];
+        }
+
+        public int GetBodyIndex(ulong bodyTrackingId)
+        {
+            for (int i = 0; i < this.bodies.Length; i += 1)
+            {
+                if (bodies[i].TrackingId == bodyTrackingId)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        public ulong GetHandRaisedPlayer()
+        {
+            ulong bodyID = 0;
+            foreach (Body body in this.bodies)
+            {
+                if (body != null)
+                {
+                    float headY = body.Joints[JointType.Head].Position.Y;
+                    if (body.Joints[JointType.HandLeft].Position.Y > headY || body.Joints[JointType.HandRight].Position.Y > headY)
+                    {
+                        if (bodyID != 0)
+                        {
+                            return 0;
+                        }
+                        bodyID = body.TrackingId;
+                    }
+                }
+            }
+            return bodyID;
         }
 
         private void HandleColorFrame(ColorFrameReference colorFrameReference)
@@ -177,7 +221,10 @@ namespace Kinected.Sensors
 
         public void createBitmap(int width, int height, PixelFormat pixelFormat, byte[] data)
         {
-            this.image = new Bitmap(width, height, pixelFormat);
+            if(this.image == null)
+            {
+                this.image = new Bitmap(width, height, pixelFormat);
+            }
             BitmapData bmpData = this.image.LockBits(new Rectangle(0, 0, width, height),
                 ImageLockMode.WriteOnly, this.image.PixelFormat);
             IntPtr ptr = bmpData.Scan0;

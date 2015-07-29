@@ -25,6 +25,14 @@ namespace Kinected.Forms
             }
         }
 
+        public Bitmap DepthImage
+        {
+            set
+            {
+                this.depthPB.Image = value;
+            }
+        }
+
         public int BodyCount
         {
             set
